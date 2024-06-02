@@ -1,4 +1,4 @@
-pip install  twstock
+
 
 import streamlit as st
 import twstock
