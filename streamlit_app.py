@@ -4,6 +4,7 @@ Created on Sat Jun  1 14:47:32 2024
 
 @author: bbkao4514
 """
+pip install twstock
 
 import streamlit as st
 import twstock
