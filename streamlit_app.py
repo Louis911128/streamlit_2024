@@ -1,6 +1,7 @@
-
+pip install  twstock
 
 import streamlit as st
+import twstock
 import pandas as pd
 from datetime import datetime
 
