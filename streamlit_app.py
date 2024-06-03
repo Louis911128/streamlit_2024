@@ -1,5 +1,4 @@
 
-
 import requests
 import pandas as pd
 import streamlit as st
@@ -12,12 +11,12 @@ stock_symbol = st.text_input('请输入股票代码（例如：2330）：')
 
 if stock_symbol:
     try:
-        # 获取今日日期和前一日日期
+        # 获取今日日期和一個月前的日期
         today = datetime.now().strftime("%Y%m%d")
-        yesterday = (datetime.now() - timedelta(1)).strftime("%Y%m%d")
+        last_month = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
         
         # 构建URL
-        url = f'https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={today}&stockNo={stock_symbol}'
+        url = f'https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={last_month}&stockNo={stock_symbol}'
         
         # 发送HTTP请求
         response = requests.get(url)
@@ -63,6 +62,7 @@ if stock_symbol:
             st.error('HTTP請求失敗，狀態碼: ' + str(response.status_code))
     except Exception as e:
         st.error('出现错误：' + str(e))
+
 
 
 
