@@ -1,9 +1,9 @@
 
 
-import streamlit as st
-import twstock
+import requests
 import pandas as pd
-from datetime import datetime
+import streamlit as st
+from datetime import datetime, timedelta
 
 st.title('台股股票信息查询')
 
@@ -12,43 +12,55 @@ stock_symbol = st.text_input('请输入股票代码（例如：2330）：')
 
 if stock_symbol:
     try:
-        # 从 twstock 加载股票数据
-        stock_data = twstock.Stock(stock_symbol)
+        # 获取今日日期和前一日日期
+        today = datetime.now().strftime("%Y%m%d")
+        yesterday = (datetime.now() - timedelta(1)).strftime("%Y%m%d")
         
-        # 获取股票实时信息
-        stock_info = stock_data.data[-1]  # 这里需要使用整数索引
-        stock_date = stock_info[0]
-        stock_name = stock_data.sid  # 获取股票名称
+        # 构建URL
+        url = f'https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date={today}&stockNo={stock_symbol}'
         
-        st.subheader('股票实时信息')
-        st.write({
-            "股票名称": stock_name,
-            "日期": stock_date.strftime("%Y-%m-%d"),
-            "收盘价": stock_info[6],
-            "开盘价": stock_info[3],
-            "最高价": stock_info[4],
-            "最低价": stock_info[5],
-            "成交量": stock_info[1]
-        })
+        # 发送HTTP请求
+        response = requests.get(url)
         
-        # 获取股票历史价格数据
-        stock_history = stock_data.fetch_from(2022, 1)
-        
-        # 将历史价格数据转换为 DataFrame 格式
-        df = {
-            '日期': [data.date for data in stock_history],
-            '收盘价': [data.close for data in stock_history]
-        }
-        df = pd.DataFrame(df)
-        
-        st.subheader('历史价格走势')
-        st.line_chart(df.set_index('日期')['收盘价'])
-        
-        # 获取最新交易日的股票收盘价
-        latest_price = stock_info[6]
-        
-        st.subheader('最新收盘价')
-        st.write(f'最新交易日的收盘价：{latest_price:.2f}')
+        if response.status_code == 200:
+            data = response.json()
+            if data['stat'] == 'OK':
+                # 提取字段和数据
+                fields = data['fields']
+                rows = data['data']
+                
+                # 将数据转换为DataFrame
+                df = pd.DataFrame(rows, columns=fields)
+                
+                # 将日期列转换为datetime格式
+                df['日期'] = pd.to_datetime(df['日期'], format='%Y/%m/%d')
+                
+                # 显示实时信息
+                stock_info = df.iloc[-1]
+                st.subheader('股票实时信息')
+                st.write({
+                    "股票名称": stock_symbol,
+                    "日期": stock_info['日期'].strftime("%Y-%m-%d"),
+                    "收盘价": float(stock_info['收盘价'].replace(',', '')),
+                    "开盘价": float(stock_info['开盘价'].replace(',', '')),
+                    "最高价": float(stock_info['最高价'].replace(',', '')),
+                    "最低价": float(stock_info['最低价'].replace(',', '')),
+                    "成交量": int(stock_info['成交股数'].replace(',', ''))
+                })
+                
+                # 显示历史价格数据
+                st.subheader('历史价格走势')
+                df['收盘价'] = df['收盘价'].str.replace(',', '').astype(float)
+                st.line_chart(df.set_index('日期')['收盘价'])
+                
+                # 显示最新收盘价
+                latest_price = float(stock_info['收盘价'].replace(',', ''))
+                st.subheader('最新收盘价')
+                st.write(f'最新交易日的收盘价：{latest_price:.2f}')
+            else:
+                st.error('無法獲取股票數據: ' + data['stat'])
+        else:
+            st.error('HTTP請求失敗，狀態碼: ' + str(response.status_code))
     except Exception as e:
         st.error('出现错误：' + str(e))
 
