@@ -1,45 +1,39 @@
 import streamlit as st
+import requests
 import pandas as pd
-import yfinance as yf
+import matplotlib.pyplot as plt
 
-st.title('台股股票信息查尋')
+# 定義 Alpha Vantage API 的基本 URL 和你的 API 金鑰
+ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
+API_KEY = "ROVUPSI1FD3SV3DQ"
 
-# 允许用户输入股票代码
-stock_symbol = st.text_input('請输入股票代碼（例如：2330）：')
+st.title('股票資訊查詢')
 
-if stock_symbol:
-    try:
-        # 从 Yahoo Finance 加载股票数据
-        stock_data = yf.Ticker(f'{stock_symbol}.TW')
-        
-        # 获取股票实时信息
-        stock_info = stock_data.history(period="1d")
-        latest_stock_info = stock_info.iloc[-1]
-        
-        # 获取股票中文名称
-        stock_name = stock_data.info['longName']
-        
-        st.subheader('股票實時信息')
-        st.write({
-            "股票名稱": stock_name,
-            "日期": latest_stock_info.name.strftime("%Y-%m-%d"),
-            "收盤價": latest_stock_info['Close'],
-            "開盤價": latest_stock_info['Open'],
-            "最高價": latest_stock_info['High'],
-            "最低價": latest_stock_info['Low'],
-            "成交量": latest_stock_info['Volume']
-        })
-        
-        # 获取股票历史价格数据
-        stock_history = stock_data.history(period="max")
-        
-        st.subheader('歷史價格走势')
-        st.line_chart(stock_history['Close'])
-        
-        # 获取最新交易日的股票收盘价
-        latest_price = latest_stock_info['Close']
-        
-        st.subheader('最新收盤價')
-        st.write(f'最新交易日的收盤價：{latest_price:.2f}')
-    except Exception as e:
-        st.error('出现錯誤：' + str(e))
+ticker = st.text_input('請輸入股票代碼 (例如: AAPL)：')
+
+if ticker:
+    # 發送請求到 Alpha Vantage API
+    params = {
+        "function": "TIME_SERIES_DAILY",
+        "symbol": ticker,
+        "apikey": API_KEY
+    }
+    response = requests.get(ALPHA_VANTAGE_URL, params=params)
+    data = response.json()
+
+    # 檢查 API 回應是否成功
+    if "Time Series (Daily)" in data:
+        # 將 API 回應轉換為 DataFrame
+        stock_data = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
+        stock_data.index = pd.to_datetime(stock_data.index)
+
+        # 繪製股價走勢圖
+        st.subheader('股價走勢')
+        st.line_chart(stock_data['4. close'])
+
+        # 顯示最新股價資訊
+        st.subheader('最新股價資訊')
+        latest_data = stock_data.iloc[0]
+        st.write(latest_data)
+    else:
+        st.error('無法取得股票資訊，請確認輸入的股票代碼是否正確。')
